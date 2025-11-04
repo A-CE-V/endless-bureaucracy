@@ -1,45 +1,45 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const multer = require('multer');
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const express = require("express");
+const multer = require("multer");
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
+const FormData = require("form-data");
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
+// Ensure uploads folder exists
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log("[INFO] Created uploads directory");
+}
+
+// Multer config
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');  
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
 });
-
 const upload = multer({ storage });
 
-// Pinata API credentials
+// Pinata API
 const PINATA_API_KEY = process.env.PINATA_API_KEY;
 const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
+const PINATA_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
-// Pinata API URL
-const PINATA_URL = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
-
-app.post('/upload-profile-pic', upload.single('profilePic'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded.');
-  }
+// Upload endpoint
+app.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) => {
+  if (!req.file) return res.status(400).send("No file uploaded.");
 
   try {
-    // Prepare the form data to upload to Pinata
     const formData = new FormData();
-    formData.append('file', fs.createReadStream(req.file.path));
+    formData.append("file", fs.createReadStream(req.file.path));
 
     const response = await axios.post(PINATA_URL, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        ...formData.getHeaders(),
         pinata_api_key: PINATA_API_KEY,
         pinata_secret_api_key: PINATA_SECRET_KEY,
       },
@@ -47,22 +47,17 @@ app.post('/upload-profile-pic', upload.single('profilePic'), async (req, res) =>
 
     const ipfsHash = response.data.IpfsHash;
     const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+
+    fs.unlinkSync(req.file.path);
+
     res.json({ imageUrl: ipfsUrl });
   } catch (error) {
-    console.error(error);
-    res.status(500).send('Error uploading image to Pinata.');
+    console.error(error.response?.data || error.message);
+    res.status(500).send("Error uploading image to Pinata.");
   }
 });
 
-app.get("/health", (req, res) => {
-  res.send({ status: "OK", uptime: process.uptime() });
-});
+app.get("/health", (req, res) => res.send({ status: "OK", uptime: process.uptime() }));
+app.get("/", (req, res) => res.send({ status: "Endless Bureaucracy Conversion API", uptime: process.uptime() }));
 
-app.get("/", (req, res) => {
-  res.send({ status: "Endless Bureaucracy Conversion Api", uptime: process.uptime() });
-});
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
+app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
