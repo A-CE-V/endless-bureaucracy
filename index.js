@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors");
 const multer = require("multer");
 const axios = require("axios");
 const fs = require("fs");
@@ -9,6 +10,13 @@ const FormData = require("form-data");
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// ✅ Enable CORS
+app.use(cors({
+  origin: ["http://localhost:8080", "https://endlessforge.com"],
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 // Ensure uploads folder exists
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -24,7 +32,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Pinata API
+// Pinata API keys
 const PINATA_API_KEY = process.env.PINATA_API_KEY;
 const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
 const PINATA_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
@@ -50,6 +58,7 @@ app.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) =>
 
     fs.unlinkSync(req.file.path);
 
+    res.setHeader("Access-Control-Allow-Origin", "*"); // optional redundancy
     res.json({ imageUrl: ipfsUrl });
   } catch (error) {
     console.error(error.response?.data || error.message);
