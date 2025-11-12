@@ -1,4 +1,5 @@
 import "dotenv/config";
+import admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
 import multer from "multer";
@@ -9,10 +10,9 @@ import FormData from "form-data";
 import bodyParser from "body-parser";
 import Mailjet from "node-mailjet";
 import {Filter} from "bad-words";
+import { verifyApiKey } from "./shared/apiKeyMiddleware.js";
+import { enforceLimit } from "./shared/rateLimit.js";
 
-// ===========================
-// Setup
-// ===========================
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -58,7 +58,11 @@ const PINATA_API_KEY = process.env.PINATA_API_KEY;
 const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
 const PINATA_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
-app.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) => {
+app.post("/upload-profile-pic",
+  verifyApiKey,
+  (req, res, next) => enforceLimit(req, res, next, "profileChange"),
+  upload.single("profilePic"),
+  async (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded.");
 
   try {
@@ -86,8 +90,48 @@ app.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) =>
   }
 });
 
+app.post(
+  "/update-profile-name",
+  verifyApiKey,
+  (req, res, next) => enforceLimit(req, res, next, "profileChange"),
+  async (req, res) => {
+    try {
+      const { uid, newName } = req.body;
 
-app.post("/contact", async (req, res) => {
+      if (!uid || !newName) {
+        return res.status(400).json({ error: "Missing uid or newName" });
+      }
+
+      await admin.auth().updateUser(uid, { displayName: newName });
+
+      const userRef = admin.firestore().collection("users").doc(uid);
+      await userRef.update({
+        displayName: newName,
+        "profile.name": newName,
+        "api.lastProfileNameUpdate": new Date().toISOString(),
+      });
+
+      console.log(`Updated display name for UID ${uid} → ${newName}`);
+
+      res.json({
+        success: true,
+        message: "Profile name updated successfully",
+        newName,
+      });
+    } catch (err) {
+      console.error("Error updating profile name:", err);
+      res.status(500).json({
+        error: "Failed to update profile name",
+        details: err.message,
+      });
+    }
+  }
+);
+
+app.post("/contact",
+  verifyApiKey,
+  (req, res, next) => enforceLimit(req, res, next, "mail"),
+  async (req, res) => {
   const { name, email, message } = req.body;
 
   if (!name || !email || !message) {
