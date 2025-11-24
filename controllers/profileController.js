@@ -2,7 +2,7 @@ import fs from "fs";
 import FormData from "form-data";
 import axios from "axios";
 import admin from "../config/firebase.js"; 
-import imagekit from "../config/imagekit.js";
+import imagekit from "../config/imagekit_temp.js";
 
 export const uploadProfilePicPinata = async (req, res) => {
   if (!req.file) return res.status(400).send("No file uploaded.");
