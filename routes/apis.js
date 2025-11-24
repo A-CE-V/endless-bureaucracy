@@ -1,11 +1,7 @@
 import express from "express";
 import { verifyInternalKey } from "../middleware/apiKey.js";
 import { uploadDisk, uploadMemory } from "../middleware/upload.js";
-import { 
-  uploadProfilePicPinata, 
-  uploadProfilePicImageKit, 
-  updateProfileName 
-} from "../controllers/profileController.js";
+import { uploadProfilePicPinata, uploadProfilePicImageKit, updateProfileName } from "../controllers/profileController.js";
 import { sendContactEmail } from "../controllers/contactController.js";
 
 const router = express.Router();
