@@ -1,8 +1,22 @@
 import express from "express";
-import { verifyInternalKey } from "../middleware/apiKey.js";
 import { uploadDisk, uploadMemory } from "../middleware/upload.js";
 import { uploadProfilePicPinata, uploadProfilePicImageKit, updateProfileName } from "../controllers/profileController.js";
 import { sendContactEmail } from "../controllers/contactController.js";
+
+/**
+ * Commit V.3.0.0 - 2026-01-09
+ * 
+ * ------------------------------
+ *  PDF(CONVERSION) Microservice
+ * ------------------------------
+ * Features:
+ *  - Pdf to images and viceversa conversions.
+ *  - Secured with HMAC authentication middleware [Added on this commit]
+ * 
+ * 
+ */
+import { verifyInternalKey } from "../middleware/apiKey.js";
+import { Readable } from 'stream';
 
 const router = express.Router();
 
@@ -13,15 +27,15 @@ router.get("/", (req, res) => res.send({ status: "Endless Bureaucracy Conversion
 // Profile Routes
 router.post(
   "/upload-profile-pic", 
-  verifyInternalKey, 
   uploadDisk.single("profilePic"), 
+  verifyInternalKey, 
   uploadProfilePicPinata
 );
 
 router.post(
   "/upload-profile-pic-v2", 
-  verifyInternalKey, 
   uploadMemory.single("profilePic"), 
+  verifyInternalKey, 
   uploadProfilePicImageKit
 );
 
@@ -34,7 +48,7 @@ router.post(
 // Contact Routes
 router.post(
   "/contact", 
-  verifyInternalKey, 
+  verifyInternalKey,
   sendContactEmail
 );
 

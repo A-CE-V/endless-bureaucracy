@@ -8,8 +8,47 @@ import { startCleanupJob } from "./utils/cleanup.js";
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware
-app.use(bodyParser.json());
+app.use((req, res, next) => {
+  let data = [];
+  req.on('data', chunk => data.push(chunk));
+  req.on('end', () => {
+    const buffer = Buffer.concat(data);
+    req.rawBody = buffer;
+
+    if (req.headers['content-length'] > 0 || req.headers['transfer-encoding']) {
+      const readable = new Readable();
+      readable._read = () => {}; 
+      readable.push(buffer);
+      readable.push(null);
+      
+      Object.assign(readable, {
+        headers: req.headers,
+        method: req.method,
+        url: req.url,
+        rawBody: buffer
+      });
+      
+      req.on = readable.on.bind(readable);
+      req.once = readable.once.bind(readable);
+      req.emit = readable.emit.bind(readable);
+      req.resume = readable.resume.bind(readable);
+      req.pause = readable.pause.bind(readable);
+      req.pipe = readable.pipe.bind(readable);
+      req.unpipe = readable.unpipe.bind(readable);
+
+      // Manual JSON parsing for the /contact and /update-profile-name routes
+      if (req.headers['content-type']?.includes('application/json')) {
+        try {
+          req.body = JSON.parse(buffer.toString());
+        } catch (e) {
+          req.body = {};
+        }
+      }
+    }
+    next();
+  });
+});
+
 
 // CORS Setup
 const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
